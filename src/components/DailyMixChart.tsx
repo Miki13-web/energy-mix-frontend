@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { FuelMixDto } from '../api/energyApi';
+import './DailyMixChart.css';
 
 interface Props {
   date: string;
@@ -7,52 +8,114 @@ interface Props {
   cleanEnergyPercentage: number;
 }
 
-// Kolory przypisane do konkretnych źródeł energii
-const COLORS: Record<string, string> = {
-  gas: '#ff9999',
-  coal: '#666666',
-  nuclear: '#99ccff',
-  wind: '#99ff99',
-  solar: '#ffff99',
-  biomass: '#cc99ff',
-  hydro: '#66b3ff',
-  imports: '#c2c2d6',
-  other: '#e6e6e6'
+const FUEL_COLORS: Record<string, string> = {
+  gas: '#c97b63',
+  coal: '#52525b',
+  nuclear: '#6b8cae',
+  wind: '#2d9a6f',
+  solar: '#d4a843',
+  biomass: '#8a7340',
+  hydro: '#3d8fa8',
+  imports: '#94a3b8',
+  other: '#cbd5e1',
 };
 
-const getColor = (fuel: string) => COLORS[fuel.toLowerCase()] || '#cccccc';
+const FUEL_LABELS: Record<string, string> = {
+  gas: 'Gaz',
+  coal: 'Węgiel',
+  nuclear: 'Atom',
+  wind: 'Wiatr',
+  solar: 'Słońce',
+  biomass: 'Biomasa',
+  hydro: 'Woda',
+  imports: 'Import',
+  other: 'Inne',
+};
 
-export const DailyMixChart = ({ date, mix, cleanEnergyPercentage }: Props) => {
-  const formattedDate = new Date(date).toLocaleDateString();
+const getColor = (fuel: string) => FUEL_COLORS[fuel.toLowerCase()] ?? '#94a3b8';
+
+const getLabel = (fuel: string) => FUEL_LABELS[fuel.toLowerCase()] ?? fuel;
+
+const formatDate = (date: string) =>
+  new Date(date).toLocaleDateString('pl-PL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
+interface TooltipPayload {
+  name?: string;
+  value?: number;
+  payload?: { fuelLabel?: string };
+}
+
+const ChartTooltip = ({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: TooltipPayload[];
+}) => {
+  if (!active || !payload?.length) return null;
+
+  const item = payload[0];
+  const label = item.payload?.fuelLabel ?? item.name ?? '';
+  const value = item.value;
 
   return (
-    <div style={{ border: '1px solid #e2e8f0', padding: '1rem', borderRadius: '8px', margin: '1rem', width: '320px', backgroundColor: '#fff' }}>
-      <h3 style={{ textAlign: 'center', margin: '0 0 10px 0' }}>{formattedDate}</h3>
-      <p style={{ textAlign: 'center', fontWeight: 'bold', color: '#16a34a' }}>
-        Czysta energia: {cleanEnergyPercentage}%
-      </p>
-      
-      <div style={{ height: '250px' }}>
+    <div className="chart-tooltip">
+      <div className="chart-tooltip__label">{label}</div>
+      <div className="chart-tooltip__value">{value !== undefined ? `${value}%` : ''}</div>
+    </div>
+  );
+};
+
+export const DailyMixChart = ({ date, mix, cleanEnergyPercentage }: Props) => {
+  const chartData = mix
+    .filter((entry) => entry.percentage > 0)
+    .map((entry) => ({
+      ...entry,
+      fuelLabel: getLabel(entry.fuel),
+    }));
+
+  return (
+    <article className="chart-card">
+      <header className="chart-card__header">
+        <h3 className="chart-card__date">{formatDate(date)}</h3>
+        <div className="chart-card__badge">
+          <span className="chart-card__badge-dot" aria-hidden="true" />
+          Czysta energia: {cleanEnergyPercentage}%
+        </div>
+      </header>
+
+      <div className="chart-card__chart">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={mix}
+              data={chartData}
               dataKey="percentage"
-              nameKey="fuel"
+              nameKey="fuelLabel"
               cx="50%"
-              cy="50%"
-              outerRadius={80}
-              fill="#8884d8"
+              cy="46%"
+              innerRadius={42}
+              outerRadius={78}
+              paddingAngle={2}
+              stroke="none"
             >
-              {mix.map((entry, index) => (
+              {chartData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={getColor(entry.fuel)} />
               ))}
             </Pie>
-            <Tooltip formatter={(value) => (value !== undefined && value !== null ? `${value}%` : '')} />
-            <Legend />
+            <Tooltip content={<ChartTooltip />} />
+            <Legend
+              className="chart-legend"
+              iconType="circle"
+              iconSize={8}
+              wrapperStyle={{ paddingTop: '0.5rem' }}
+            />
           </PieChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </article>
   );
 };

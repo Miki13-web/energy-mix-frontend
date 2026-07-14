@@ -1,14 +1,35 @@
 import { useState } from 'react';
 import { getOptimalWindow, type OptimalWindowDto } from '../api/energyApi';
+import './OptimalWindowForm.css';
+
+const HOUR_OPTIONS = [1, 2, 3, 4, 5, 6] as const;
+
+const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('pl-PL', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+const isValidHours = (value: number) => Number.isInteger(value) && value >= 1 && value <= 6;
 
 export const OptimalWindowForm = () => {
-  const [hours, setHours] = useState<number>(1);
+  const [hours, setHours] = useState(3);
   const [result, setResult] = useState<OptimalWindowDto | null>(null);
-  const [error, setError] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isValidHours(hours)) {
+      setError('Podaj liczbę godzin od 1 do 6.');
+      setResult(null);
+      return;
+    }
+
     setError('');
     setResult(null);
     setLoading(true);
@@ -16,49 +37,75 @@ export const OptimalWindowForm = () => {
     try {
       const data = await getOptimalWindow(hours);
       setResult(data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Wystąpił błąd podczas obliczania okna ładowania.');
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+        'Nie udało się obliczyć okna. Sprawdź, czy backend odpowiada.';
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{ margin: '2rem auto', padding: '1.5rem', border: '1px solid #93c5fd', borderRadius: '8px', maxWidth: '600px', backgroundColor: '#eff6ff' }}>
-      <h2 style={{ marginTop: 0 }}>Wyznacz okno ładowania ⚡</h2>
-      
-      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <label style={{ fontWeight: 'bold' }}>
-          Czas ładowania (1-6h):
-          <input
-            type="number"
-            min="1"
-            max="6"
-            value={hours}
-            onChange={(e) => setHours(Number(e.target.value))}
-            style={{ marginLeft: '0.5rem', padding: '0.5rem', width: '60px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-        </label>
-        <button 
-          type="submit" 
-          disabled={loading}
-          style={{ padding: '0.5rem 1.5rem', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-        >
-          {loading ? 'Szukam...' : 'Oblicz'}
+    <section className="optimal-section" aria-labelledby="optimal-title">
+      <header className="optimal-section__header">
+        <h2 id="optimal-title" className="optimal-section__title">
+          Kiedy ładować?
+        </h2>
+        <p className="optimal-section__desc">
+          Wybierz długość sesji ładowania — aplikacja znajdzie przedział z największym udziałem
+          energii czystej.
+        </p>
+      </header>
+
+      <form className="optimal-form" onSubmit={handleSubmit}>
+        <fieldset className="optimal-form__hours">
+          <legend className="optimal-form__label">Czas ładowania</legend>
+          <div className="hour-picker" role="group" aria-label="Liczba godzin">
+            {HOUR_OPTIONS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={`hour-picker__btn${hours === value ? ' hour-picker__btn--active' : ''}`}
+                aria-pressed={hours === value}
+                onClick={() => setHours(value)}
+              >
+                {value}h
+              </button>
+            ))}
+          </div>
+        </fieldset>
+
+        <button type="submit" className="optimal-form__submit" disabled={loading}>
+          {loading ? 'Szukam…' : 'Oblicz'}
         </button>
       </form>
 
-      {error && <p style={{ color: '#dc2626', fontWeight: 'bold' }}>{error}</p>}
+      {error && (
+        <p className="optimal-error" role="alert">
+          {error}
+        </p>
+      )}
 
       {result && (
-        <div style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
-          <p><strong>Rozpoczęcie:</strong> {new Date(result.startTime).toLocaleString()}</p>
-          <p><strong>Zakończenie:</strong> {new Date(result.endTime).toLocaleString()}</p>
-          <p style={{ color: '#16a34a', fontWeight: 'bold' }}>
-            Średni udział czystej energii: {result.cleanEnergyPercentage}%
-          </p>
+        <div className="optimal-result">
+          <div className="optimal-result__grid">
+            <div className="optimal-result__row">
+              <span className="optimal-result__key">Start</span>
+              <span className="optimal-result__value">{formatDateTime(result.startTime)}</span>
+            </div>
+            <div className="optimal-result__row">
+              <span className="optimal-result__key">Koniec</span>
+              <span className="optimal-result__value">{formatDateTime(result.endTime)}</span>
+            </div>
+          </div>
+          <div className="optimal-result__highlight">
+            <span className="optimal-result__highlight-label">Średni udział czystej energii</span>
+            <span className="optimal-result__highlight-value">{result.cleanEnergyPercentage}%</span>
+          </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };

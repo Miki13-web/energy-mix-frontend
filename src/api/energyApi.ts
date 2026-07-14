@@ -1,14 +1,10 @@
 import axios from 'axios';
 
-// Adres backendu (port z Twojego screena)
 const apiClient = axios.create({
-  baseURL: 'http://localhost:5194/api/Energy',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_URL ?? 'https://energymix-api-5v57.onrender.com/api/Energy',
+  //baseURL: 'http://localhost:5194/api/Energy',
 });
 
-// Typowanie odpowiedzi zgodnie z naszymi DTO z C#
 export interface FuelMixDto {
   fuel: string;
   percentage: number;
@@ -28,7 +24,7 @@ export interface OptimalWindowDto {
 
 export const getThreeDaysMix = async (): Promise<DailyMixDto[]> => {
   const response = await apiClient.get<DailyMixDto[]>('/mix');
-  return response.data;
+  return response.data.slice(0, 3);
 };
 
 export const getOptimalWindow = async (hours: number): Promise<OptimalWindowDto> => {
