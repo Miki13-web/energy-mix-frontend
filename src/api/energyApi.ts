@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
+    //both baseURL options 
   baseURL: import.meta.env.VITE_API_URL ?? 'https://energymix-api-5v57.onrender.com/api/Energy',
   //baseURL: 'http://localhost:5194/api/Energy',
 });
